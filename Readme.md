@@ -1,3 +1,9 @@
+# Changes in this fork
+
+I was handed this script by a colleague who couldn't get it to run on Python3.  It appeared to be written for Python2.  I did some minor changes and added a requirements.txt file.  Run the following command to import the required modules:
+
+> pip install -r requirements.txt
+
 # McAfee Web Gateway Cloud Services (WGCS) Logpuller Script
 
 Script to get McAfee Web Gateway Cloud Service logs from McAfee SaaS-API. Logs are downloaded to ```'OutputLog.$NowUnixEpoch$.csv'``` and can be forwarded to a remote syslog host or SIEM when ```syslogEnable``` is set to ```'True'```.
