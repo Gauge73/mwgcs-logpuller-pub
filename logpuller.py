@@ -42,10 +42,11 @@ import time
 import socket
 import csv
 import json
-import StringIO
+from io import StringIO
+from io import BytesIO
 import requests
 from requests.auth import HTTPBasicAuth
-import ConfigParser
+import configparser
 import io
 import logging
 import argparse
@@ -89,11 +90,13 @@ def readConfig(config):
     global saasCustomerID, saasUserID, saasPassword, saasHost, requestTimestampFrom, chunkIncrement, connectionTimeout, outputDirCSV, proxyURL, syslogEnable, syslogHost, syslogPort, syslogProto, syslogKeepCSV
     try:
         with open(config, 'r') as f:
-            cfgfile = f.read()
-            parser = ConfigParser.RawConfigParser(allow_no_value=True)
+            #cfgfile = f.read()
+            cfgfile = f
+            parser = configparser.RawConfigParser(allow_no_value=True)
             # make option names case sensitive (https://docs.python.org/2/library/configparser.html#ConfigParser.RawConfigParser.optionxform)
             parser.optionxform = str
-            parser.readfp(io.BytesIO(cfgfile))
+            #parser.readfp(io.BytesIO(cfgfile))
+            parser.read_file(cfgfile)
 
             saasCustomerID = parser.getint('saas', 'saasCustomerID')
             logging.info('saasCustomerID='+str(saasCustomerID))
@@ -148,7 +151,7 @@ def changeConfigTime(config,timeStamp,value):
     try:
         with open(config, 'r') as f:
             cfgfile = f.read()
-            parser = ConfigParser.RawConfigParser(allow_no_value=True)
+            parser = configparser.RawConfigParser(allow_no_value=True)
             # make option names case sensitive
             parser.optionxform = str
             # get config in-memory
@@ -180,7 +183,8 @@ def variableSubstitution(variable):
 def syslogForwarder(saasFilename):
     logging.info('Parsing CSV to JSON stream and forwarding to: '+syslogHost+', Port '+str(syslogPort)+' ('+syslogProto+')')
     # create empty in-memory file-like object for JSON transformation
-    jsonFile = StringIO.StringIO()
+    #jsonFile = StringIO.StringIO()
+    jsonFile = BytesIO()
     try:
         # read downloaded CSV and parse it into list
         with open(saasFilename, 'r') as csvFile:
@@ -241,7 +245,8 @@ for requestChunk in range(requestTimestampFrom,Now,chunkIncrement):
             r = requests.get(requestPath, proxies=requestProxies, headers=requestHeaders, auth=HTTPBasicAuth(saasUserID, saasPassword), timeout=connectionTimeout)
 
         # put response into variable
-        output = StringIO.StringIO(r.text.encode('utf-8'))
+        #output = StringIO.StringIO(r.text.encode('utf-8'))
+        output = BytesIO(r.text.encode('utf-8'))
  
         if r.status_code != 200:
             raise ValueError('Invalid response status: ' + str(r.status_code))
@@ -253,7 +258,7 @@ for requestChunk in range(requestTimestampFrom,Now,chunkIncrement):
 
         # first line of response should be fieldHeader
         if responseLines[0] != fieldHeader:
-            logging.warning(requestLogLine+': invalid first line: ' + responseLines[0])
+            logging.warning(requestLogLine+': invalid first line: ' + str(responseLines[0]))
 
         totalLines += responseLines.__len__() - 2
         requestLogLine += ', response: ' + str(r.status_code) + ', responseLines: ' + str(responseLines.__len__()) + ', totalLines: ' + str(totalLines)
@@ -271,7 +276,7 @@ for requestChunk in range(requestTimestampFrom,Now,chunkIncrement):
             logging.info('creating output file: '+saasFilename)
             try:
                 with open(saasFilename, 'w+b') as outputFile:
-                    outputFile.write(fieldHeader+os.linesep)
+                    outputFile.write(bytes(fieldHeader+os.linesep, encoding='utf-8'))
             except Exception as e:
                 logging.critical("Exception: can't write outputFile: "+saasFilename+': '+str(e))
                 sys.exit(1)
@@ -283,7 +288,7 @@ for requestChunk in range(requestTimestampFrom,Now,chunkIncrement):
                 # exclude any blank lines
                 if responseLines[line] == '':
                     continue
-                outputFile.write(responseLines[line]+os.linesep)
+                outputFile.write(responseLines[line]+bytes(os.linesep, encoding='utf-8'))
 
     except Exception as e:
         logging.critical(str(e))
